@@ -1,0 +1,52 @@
+<div ng-init="setPageTitle('Кассы')"></div>
+<div class="container-fluid">
+    <div class="row-fluid">
+        <div ng-show="mode == 'list'">
+            <h3>Кассы</h3>
+
+            <span ng-show="!isOneAccSelected">Выберите счет</span>
+            <span ng-show="isOneAccSelected && cashdesks && !cashdesks.length">Кассы для этого лицевого счета не найдены</span>
+
+            <table ng-show="cashdesks.length && isOneAccSelected" class="table table-bordered table-striped table-condensed" style="width:450px;">
+                <thead><tr class="center">
+                    <th width="40">#</th>
+                    <th>Текущий баланс</th>
+                    <th ng-show="hasRoleIncass">Управление</th>
+                </tr></thead>
+                <tbody>
+                <tr ng-repeat="cashdesk in cashdesks" class="center">
+                    <td>{{ cashdesk.cd }}</td>
+                    <td class="right nowrap">{{ cashdesk.balance | formatNumberFixed }}</td>
+                    <td>
+                        <span class="label label-success pointer" ng-click="showForm('add', cashdesk)">Пополнить</span>&nbsp;&nbsp;
+                        <span class="label label-important pointer" ng-click="showForm('sub', cashdesk)">Списать</span>&nbsp;&nbsp;
+                        <span class="label label-info pointer" ng-click="showForm('reset', cashdesk)">Обнулить</span>
+                        <!--<a href="/#/reports/overall?cashdesk={{ cashdesk.cd }}" title="Перейти к отчету">
+                            <span class="label label-info">Отчет</span>
+                        </a>-->
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div ng-show="mode != 'list'">
+            <button ng-click="cancel()" class="btn"><i class="icon-arrow-left"></i> Вернуться</button>
+
+            <h3>{{ mode == 'add' && 'Пополнение кассы' || 'Списание с кассы' }}</h3>
+            Счет: <b>{{ selectedAccounts[0].name }} ({{ selectedAccounts[0].id }})</b>,
+            касса: <b>{{ cashdesk.cd }}</b>,
+            баланс: <b>{{ cashdesk.balance | formatNumberFixed }}</b><br><br>
+            <form class="form-horizontal">
+                <span ng-show="mode == 'add'">Сумма пополнения:</span>
+                <span ng-show="mode == 'sub'">Сумма списания:</span>
+                <input placeholder="Введите значение" ng-model="sum" ng-pattern="digitsRegexp" max="100000000">
+                <button class="btn btn-success" type="button" ng-click="transfer()">Выполнить</button>
+            </form>
+            <label ng-show="result == 'success'" class="label label-success">Операция выполнена успешно!</label>
+            <label ng-show="result == 'error'" class="label label-important">Ошибка на сервере!</label>
+            <label ng-show="result == 'not_enough_funds'" class="label label-important">Достигнут или будет превышен лимит отрицательного баланса кассы!</label>
+            <label ng-show="result == 'empty_sum' && !sum" class="label label-important">Укажите сумму операции!</label>
+        </div>
+    </div>
+</div>

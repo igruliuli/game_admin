@@ -1,0 +1,25 @@
+<div ng-init="setPageTitle('Вход')"></div>
+<div class="container">
+    <div class="row-fluid">
+        <div class="login well">
+            <legend>Вход в систему</legend>
+            <div ng-show="error" class="alert alert-error">
+                <button ng-click="error = false" type="button" class="close">&times;</button>Неверные логин или пароль!
+            </div>
+            <form ng-submit="submit()" autofill-submit>
+                <input type="text" name="user" ng-model="user" placeholder="Логин">
+                <input type="password" name="password" ng-model="password" placeholder="Пароль">
+                <div ng-if="useCaptcha" id="captchaContainer" element="captchaContainer"
+                     vc-recaptcha
+                     on-success="setCaptcha(response)"
+                     key="'6LczvhMTAAAAAJM9Iql6Stfuzy5v98_YfqCaq6GN'" style="transform:scale(0.77);-webkit-transform:scale(0.77);
+                     -webkit-transform-origin:0 0;transform-origin:0 0;"
+                ></div>
+                <button type="submit" name="submit" class="btn btn-primary btn-block">Войти</button>
+            </form>
+        </div>
+    </div>
+</div>
+<script ng-if="useCaptcha" src="https://www.google.com/recaptcha/api.js?onload=vcRecaptchaApiLoaded&render=explicit&hl=ru"
+        async defer>
+</script>

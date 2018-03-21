@@ -1,0 +1,507 @@
+<div ng-init="setPageTitle('Бухгалтерия')"></div>
+<div ng-init="locale = {
+    credit: 'Кредитный',
+    prepaid: 'Предоплатный',
+    prepaid_online: 'Предоплатный - online',
+    not_available: 'недоступна',
+    oper_p: 'пополнение баланса администратором счета X для счета Y',
+    oper_v: 'вознаграждение за прибыль счета X по источнику Y за Z',
+    oper_s: 'списание средств администратором счета X для счета Y'
+}"></div>
+
+<div class="container-fluid">
+    <div class="row-fluid">
+        <h3>Бухгалтерия</h3>
+        <ul class="nav nav-tabs">
+            <li ng-class="{active: section == 'balance'}">
+                <a ng-click="section='balance'" class="pointer">Баланс</a>
+            </li>
+            <li ng-class="{active: section == 'settings'}">
+                <a ng-click="section='settings'" class="pointer">Настройки</a>
+            </li>
+            <li ng-class="{active: section == 'bets'}">
+                <a ng-click="section='bets'" class="pointer">Ставки</a>
+            </li>
+        </ul>
+
+        <span ng-show="isOneAccSelected && data && !data.mode">Нет данных</span>
+
+        <div ng-show="section == 'balance'" id="accounting">
+            <span ng-show="!isOneAccSelected">Выберите счет</span>
+
+            <div ng-show="isOneAccSelected && data && data.mode">
+                <div class="well" ng-show="showMoneyPrompt">
+                    <form class="form-horizontal">
+                        <span ng-show="transferAction == 'add'">Сумма пополнения:</span>
+                        <span ng-show="transferAction == 'sub'">Сумма списания:</span>
+                        <input type="number" placeholder="Введите значение" ng-model="sum" ng-pattern="digitsRegexp" max="100000000">
+                        <button class="btn btn-success" type="button" ng-click="transfer()">Выполнить</button>
+                        <button ng-click="closeMoneyPrompt()" class="btn">Отмена</button>
+                    </form>
+                    <label ng-show="transferResult == 'success'" class="label label-success">Операция выполнена успешно</label>
+                    <label ng-show="transferResult == 'error'" class="label label-important">Ошибка на сервере</label>
+                    <label ng-show="transferResult == 'empty_sum' && !sum" class="label label-important">Укажите сумму операции</label>
+
+                    <label ng-show="transferResult == 'not_allowed'" class="label label-important">
+                        Нельзя пополнить или списать средства собственного счета
+                    </label>
+                    <label ng-show="transferResult == 'own_account_is_not_prepaid'" class="label label-important">
+                        Родительский счет не является предоплатным
+                    </label>
+                    <label ng-show="transferResult == 'target_account_is_not_prepaid'" class="label label-important">
+                        Дочерний счет не является предоплатным
+                    </label>
+                    <label ng-show="transferResult == 'own_account_not_enough_money'" class="label label-important">
+                        Недостаточно средств на родительском счете для выполнения операции
+                    </label>
+                    <label ng-show="transferResult == 'target_account_not_enough_money'" class="label label-important">
+                        Недостаточно средств на дочернем счете для выполнения операции
+                    </label>
+                </div>
+
+                Счет: <b>{{ selectedAccounts[0].name }} ({{ selectedAccounts[0].id }})</b>,
+                баланс: <b>{{ data.balance | formatNumberFixed }} {{ data.currency_name }}</b>
+                &nbsp;&nbsp;
+                <button ng-click="refresh()"
+                        class="btn btn-small btn-info">Обновить
+                </button>
+                <button ng-show="data.mode != 'credit'" class="btn btn-small btn-success" ng-click="openMoneyPrompt('add')">Пополнить</button>
+                <button ng-show="data.mode != 'credit'" class="btn btn-small btn-danger" ng-click="openMoneyPrompt('sub')">Списать</button>
+
+                <dl class="dl-horizontal" id="dl-accounting">
+                    <dt>Тип учета:</dt>
+                    <dd>
+                        <select class="input-large" ng-model="mode">
+                            <option value="credit">{{ locale.credit }}</option>
+                            <option value="prepaid">{{ locale.prepaid }}</option>
+                            <option value="prepaid_online">{{ locale.prepaid_online }}</option>
+                        </select>
+                    </dd>
+
+                    <dt>Тип чека:</dt>
+                    <dd>
+                        <select class="input-large" ng-model="slipType" ng-options="t.id as t.note for t in data.slipTypes" ng-disabled="!hasRoleAdmin">
+                            <option value="">-- не задано --</option>
+                        </select>
+                    </dd>
+
+                    <dt ng-show="isSuperAdmin">Чеки:</dt>
+                    <dd ng-show="isSuperAdmin">
+                        <select class="input-large" ng-model="lima_slip_type"
+                                ng-options="t.id as t.name for t in data.limaSlipTypes">
+                        </select>
+                        <span class="help-block">Включить специальный тип чека для Lima</span>
+                    </dd>
+
+                    <dt ng-show="data.licenses.length">Лицензия:</dt>
+                    <dd ng-show="data.licenses.length">
+                        <select class="input-large" ng-model="license" ng-options="l.code as l.name for l in data.licenses">
+                        </select>
+                    </dd>
+
+                    <dt ng-show="data.taxSchemes.length">Налоги:</dt>
+                    <dd ng-show="data.taxSchemes.length">
+                        <label class="radio" ng-repeat="ts in data.taxSchemes">
+                            <input type="radio" name="radioTax" value="{{ ts.code }}" ng-model="$parent.taxScheme">
+                            {{ ts.name }}
+                        </label>
+                    </dd>
+
+                    <dt>Печать:</dt>
+                    <dd>
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="printing">
+                            Отключить автоматическую печать ПКО и РКО
+                        </label>
+                    </dd>
+
+                    <dt>Карты:</dt>
+                    <dd>
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="sms">
+                            Не отправлять СМС по операциям с картой
+                        </label>
+                    </dd>
+
+                    <dt>Париматч:</dt>
+                    <dd>
+                        <input type="text" ng-model="parimatch">
+                        <span class="help-block">Номер кассы по системе &quot;париматч&quot;</span>
+                    </dd>
+
+                    <!--
+                    <dt>Устройства:</dt>
+                    <dd>
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="texas_pin_code">
+                            Включить техасские пин-коды
+                            <span ng-show="data.texas_pin_code">
+                                &nbsp;&nbsp;
+                                <a href="/#/accounting/promo">Настройки промо бонусов</a>
+                            </span>
+                        </label>
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="lima_rfid">
+                            Поддержка RFID для Lima
+                        </label>
+                    </dd>
+                    -->
+
+                    <dt>Разрешения:</dt>
+                    <dd>
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="can_create_accs" ng-disabled="!canChangeAccs">
+                            Разрешить создавать дочерние счета
+                        </label>
+                    </dd>
+
+                    <dt></dt>
+                    <dd>
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="can_edit_min_max" ng-disabled="!haveMinMaxPermission">
+                            Разрешить менять минимальные/максимальные ставки
+                        </label>
+                    </dd>
+
+                    <dt></dt>
+                    <dd>
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="can_edit_bets_limits" ng-disabled="!haveBetsLimitsPermission">
+                            Разрешить менять настройки по обороту кассы
+                        </label>
+                    </dd>
+
+                    <dt></dt>
+                    <dd>
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="dont_restrict_cashiers_number" ng-disabled="!hasRoleAdmin">
+                            Не ограничивать создание кассиров
+                        </label>
+                    </dd>
+
+                    <dt></dt>
+                    <dd>
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="can_cancel_bets" ng-disabled="!isSuperAdmin">
+                            Разрешить отменять ставки
+                        </label>
+                    </dd>
+
+                    <dt></dt>
+                    <dd>
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="can_edit_jackpots" ng-disabled="!isSuperAdmin">
+                            Разрешить создавать/редактировать джекпоты
+                        </label>
+                    </dd>
+
+                    <dt></dt>
+                    <dd>
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="can_edit_presets" ng-disabled="!isSuperAdmin">
+                            Разрешить менять пресеты
+                        </label>
+                    </dd>
+
+                    <dt>Разное:</dt>
+                    <dd>
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="cashier_session">
+                            Включить сессию кассира
+                        </label>
+                    </dd>
+                    <dt></dt>
+                    <dd>
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="remove_all_tabs">
+                            Убрать все вкладки, кроме вкладки &quot;ПАБК&quot;
+                        </label>
+                    </dd>
+                    <dt></dt>
+                    <dd>
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="no_additional_windows">
+                            Не открывать окно редактирования клиента в демоне печати
+                        </label>
+                    </dd>
+                    <dt></dt>
+                    <dd>
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="dont_show_devices">
+                            Не показывать устройства в кассирском интерфейсе
+                        </label>
+                    </dd>
+                    <dt></dt>
+                    <dd>
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="turn_off_multilogin">
+                            Отключить мультилогин
+                        </label>
+                    </dd>
+                    <dt ng-show="data.currency_name == 'KZT'"></dt>
+                    <dd ng-show="data.currency_name == 'KZT'">
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="restrict_kz" ng-disabled="!hasRoleAdmin">
+                            Заблокировать вход со старых адресов
+                        </label>
+                    </dd>
+                    <dt ng-show="isSuperAdmin">Кассирка:</dt>
+                    <dd ng-show="isSuperAdmin">
+                        <select class="input-large" ng-model="domain_restriction"
+                                ng-options="d.id as d.domain for d in data.domains">
+                            <option value="">-- Не задано --</option>
+                        </select>
+                        <span class="help-block">Ссылка входа в кассирский интерфейс</span>
+                    </dd>
+
+                    <dt></dt>
+                    <dd>
+                        <button ng-class="{disabled: mode == data.mode && slipType == data.slipType
+                                    && taxScheme == data.tax_scheme
+                                    && license == data.license
+                                    && printing == data.printing
+                                    && sms == data.sms
+                                    && parimatch == data.parimatch
+                                    && can_create_accs == data.can_create_accs
+                                    && can_edit_min_max == data.can_edit_min_max
+                                    && texas_pin_code == data.texas_pin_code
+                                    && lima_rfid == data.lima_rfid
+                                    && cashier_session == data.cashier_session
+                                    && remove_all_tabs == data.remove_all_tabs
+                                    && no_additional_windows == data.no_additional_windows
+                                    && lima_slip_type == data.lima_slip_type
+                                    && can_edit_bets_limits == data.can_edit_bets_limits
+                                    && dont_restrict_cashiers_number == data.dont_restrict_cashiers_number
+                                    && can_cancel_bets == data.can_cancel_bets
+                                    && can_edit_jackpots == data.can_edit_jackpots
+                                    && can_edit_presets == data.can_edit_presets
+                                    && dont_show_devices == data.dont_show_devices
+                                    && restrict_kz == data.restrict_kz
+                                    && turn_off_multilogin == data.turn_off_multilogin
+                                    && domain_restriction == data.domain_restriction
+                                    }"
+                                ng-click="changeSettings()" ng-show="hasRoleMaster"
+                                class="btn btn-success disabled">Сохранить
+                        </button>
+
+                        <label ng-show="modeResult == 'success'" class="label label-success">
+                            Тип учета - Операция выполнена
+                        </label>
+                        <label ng-show="modeResult == 'error'" class="label label-important">
+                            Тип учета - Ошибка! Операция не выполнена
+                        </label>
+                        <label ng-show="modeResult == 'not_allowed'" class="label label-important">
+                            Тип учета - Недостаточно прав
+                        </label>
+
+                        <label ng-show="taxResult == 'success'" class="label label-success">
+                            Налоги - Операция выполнена
+                        </label>
+                        <label ng-show="taxResult == 'error'" class="label label-important">
+                            Налоги - Ошибка! Операция не выполнена
+                        </label>
+
+                        <label ng-show="licenseResult == 'success'" class="label label-success">
+                            Лицензия - Операция выполнена
+                        </label>
+                        <label ng-show="licenseResult == 'error'" class="label label-important">
+                            Лицензия - Ошибка! Операция не выполнена
+                        </label>
+                        <label ng-show="licenseResult == 'not_available'" class="label label-important">
+                            Лицензия - Недоступна
+                        </label>
+                        <label ng-show="licenseResult == 'not_parent_license'" class="label label-important">
+                            Лицензия - Можно выбирать только родительские лицензии
+                        </label>
+                        <label ng-show="licenseResult == 'cant_change_license'" class="label label-important">
+                            Лицензия - Нельзя сменить лицензию
+                        </label>
+
+                        <label ng-show="operationResult == 'error'" class="label label-important">
+                            Ошибка! Операция не выполнена
+                        </label>
+                    </dd>
+                </dl>
+
+                <div ng-show="data.mode != 'credit'">
+                    <h4>Последние операции:</h4>
+
+                    <form class="form-inline">
+                        <!--undefined:-->
+                        <span class="daterange" daterangepicker opt-offset="-6" opt-time="true" opt-prefix="history.accounting"
+                              start="start" end="end" label="label">
+                            <i class="icon-calendar icon-large"></i>
+                            <span ng-bind="label"></span> <span class="caret"></span>
+                        </span>
+                        &nbsp;&nbsp;
+
+                        <select timezones ng-model="tz" class="timezone"></select>
+                        &nbsp;&nbsp;
+
+                        <select ng-model="fltOperType" style="width: 140px;" convert-to-number>
+                            <option value="0">Все операции</option>
+                            <option value="1">Вознаграждение</option>
+                            <option value="2">Пополнение/списание</option>
+                        </select>
+
+                        &nbsp;&nbsp;
+                        <button ng-click="refresh()"
+                                class="btn btn-small btn-info">Обновить
+                        </button>
+
+                        <span class="badge badge-info" data-original-title="Всего операций" tooltip>
+                            {{ operations.length }}
+                        </span>
+                        <span class="badge badge-success" data-original-title="Всего пополнено" tooltip>
+                            {{ totalIn | formatNumberFixed }}
+                        </span>
+                        <span class="badge badge-important" data-original-title="Всего списано" tooltip>
+                            {{ totalOut | formatNumberFixed }}
+                        </span>
+
+                        <div ng-show="operations.length" class="pull-right">
+                            <input type="text" class="input-tiny" ng-model="pager.size"
+                                   data-original-title="Показывать по" tooltip>
+                            <button class="btn btn-small" ng-click="prev()">&laquo;</button>
+                            Страница {{ pager.current }} из {{ pager.total }}
+                            <button class="btn btn-small" ng-click="next()">&raquo;</button>
+                        </div>
+                    </form>
+
+                    <span ng-show="operations && !operations.length">Не найдено</span>
+                    <table ng-show="operations.length" class="table table-bordered table-striped table-condensed">
+                        <thead><tr class="center">
+                            <th width="40">#</th>
+                            <th width="100">пополнение</th>
+                            <th width="100">списание</th>
+                            <th width="140">дата</th>
+                            <th>примечание</th>
+                        </tr></thead>
+                        <tbody>
+                        <tr bindonce ng-repeat="op in filteredOps" class="center"
+                            ng-class="{success: op.amount > 0, error: op.amount < 0}">
+                            <td bo-bind="op.id"></td>
+                            <td class="right" bo-bind="(op.amount > 0 && op.amount || '') | formatNumberFixed"></td>
+                            <td class="right" bo-bind="(op.amount < 0 && op.amount || '') | formatNumberFixed"></td>
+                            <td bo-bind="op.stamp"></td>
+                            <td bo-bind="op.note"></td>
+                        </tr>
+                        </tbody>
+                    </table>
+
+                    <div ng-show="operations.length" class="pull-right">
+                        <input type="text" class="input-tiny" ng-model="pager.size"
+                               data-original-title="Показывать по" tooltip>
+                        <button class="btn btn-small" ng-click="prev()">&laquo;</button>
+                        Страница {{ pager.current }} из {{ pager.total }}
+                        <button class="btn btn-small" ng-click="next()">&raquo;</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div ng-show="section == 'settings' && isOneAccSelected && data && data.mode">
+            <h4>Настройки вознаграждения</h4>
+
+            <table class="table table-bordered table-striped table-condensed" style="width: 600px;">
+                <thead><tr class="center">
+                    <th>Источник</th>
+                    <th style="width: 80px;">Процент</th>
+                    <th ng-show="hasRoleAdmin">Действия</th>
+                </tr></thead>
+                <tbody>
+                <tr ng-repeat="source in data.sources" class="center middle filter-row">
+                    <td>{{ source.name }}</td>
+                    <td><input type="text" class="input-small" placeholder="n/a" ng-model="settings[source.id]" ng-disabled="!hasRoleMaster"></td>
+                    <td ng-show="hasRoleAdmin">
+                        <button ng-click="setPercent(source.id, settings[source.id])" class="btn btn-small"
+                                ng-class="{
+                                    'btn-success': settings[source.id] != source.percent && !settingsError,
+                                    'btn-danger': settings[source.id] != source.percent && settingsError
+                                }">
+                            Установить
+                        </button>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div ng-show="section == 'bets' && isOneAccSelected && data && data.mode">
+            <h4>Ставки</h4>
+
+            <form id="accounting-form-bets" class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="input-count">Количество:</label>
+                    <div class="controls">
+                        <input type="text" ng-model="betsCount" id="input-count" ng-pattern="numRegExp"
+                               ng-disabled="!data.can_edit_bets_limits && !hasRoleAdmin">
+                        <span class="help-block">Максимальное количество ставок</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="input-amount">Оборот:</label>
+                    <div class="controls">
+                        <input type="text" ng-model="betsVolume" id="input-amount" ng-pattern="numRegExp"
+                               ng-disabled="!data.can_edit_bets_limits && !hasRoleAdmin">
+                        <span class="help-block">Сумма ставок</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="input-profit">Прибыль по кассе:</label>
+                    <div class="controls">
+                        <input type="text" ng-model="cashdeskProfit" id="input-profit" ng-pattern="numRegExp"
+                               ng-disabled="!data.can_edit_bets_limits && !hasRoleAdmin">
+                    </div>
+                </div>
+                <hr/>
+                <div class="control-group">
+                    <label class="control-label" for="input-amount">Софт лимит:</label>
+                    <div class="controls">
+                        <input type="text" ng-model="betsSoftLimit" id="input-limit" ng-pattern="numRegExp" ng-change="onChangeSoftLimit()">
+                        <span ng-show="alertSoftLimit" class="text-error">Значение должно быть не менее {{ minSoftLimit }}</span>
+                        <span class="help-block">Сумма ставки, при которой ставка принимается, а на указанные номера телефонов отправляются сообщения</span>
+                        <div class="input-prepend">
+                            <span class="add-on">+</span>
+                            <input type="text" placeholder="номер телефона..." ng-model="phone0" style="width: 180px;margin-right: 10px;" ng-pattern="digitsRegexp">
+                            <span class="label label-important"
+                                  ng-show="phones[0].rawInput && !(phones[0].isValid && phones[0].numberType === 'MOBILE')">
+                                Некорректный номер телефона
+                            </span>
+                        </div><br/><br/>
+                        <div class="input-prepend">
+                            <span class="add-on">+</span>
+                            <input type="text" placeholder="номер телефона..." ng-model="phone1" style="width: 180px;margin-right: 10px;" ng-pattern="digitsRegexp">
+                            <span class="label label-important"
+                                  ng-show="phones[1].rawInput && !(phones[1].isValid && phones[1].numberType === 'MOBILE')">
+                                Некорректный номер телефона
+                            </span>
+                        </div><br/><br/>
+                        <div class="input-prepend">
+                            <span class="add-on">+</span>
+                            <input type="text" placeholder="номер телефона..." ng-model="phone2" style="width: 180px;margin-right: 10px;" ng-pattern="digitsRegexp">
+                            <span class="label label-important"
+                                  ng-show="phones[2].rawInput && !(phones[2].isValid && phones[2].numberType === 'MOBILE')">
+                                Некорректный номер телефона
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                <hr/>
+                <div class="control-group">
+                    <div class="controls">
+                        <button ng-show="hasRoleMaster" ng-click="changeBets()" class="btn btn-success">Сохранить</button>
+                        &nbsp;&nbsp;
+                        <label ng-show="betResult == 'success'" class="label label-success">
+                            Операция выполнена
+                        </label>
+                        <label ng-show="betResult == 'error'" class="label label-important">
+                            Ошибка! Операция не выполнена
+                        </label>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+    </div>
+</div>

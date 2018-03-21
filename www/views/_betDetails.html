@@ -1,0 +1,56 @@
+<div>
+    <div style="margin: 10px 0;">
+        <button ng-click="cancel()" class="btn"><i class="icon-arrow-left"></i> Вернуться</button>
+        &nbsp;&nbsp;&nbsp;
+        <button ng-show="!slipInfo.payAmount"
+                ng-click="flags.showApproval = true" class="btn btn-danger">Отменить ставку!</button>
+        &nbsp;&nbsp;&nbsp;
+        <span class="label label-success" ng-show="cancelResult == 'success'">Ставка отменена!</span>
+        <span class="label label-important" ng-show="cancelResult == 'not_allowed'">Недостаточно прав!</span>
+        <span class="label label-important" ng-show="cancelResult == 'error'">Ошибка! Операция не выполнена</span>
+        <span class="label label-important" ng-show="cancelResult == 'already_paid'">Ставка уже отменена или выплачена!</span>
+        <span class="label label-important" ng-show="cancelResult == 'invalid_id'">Некорректный идентификатор ставки!</span>
+    </div>
+
+    <div class="well" ng-show="flags.showApproval">
+        Отменить ставку и выплатить сумму со множителем 1?
+        <br/><br/>
+        <button ng-click="flags.showApproval = false" class="btn btn-info">Нет, закрыть</button>
+        &nbsp;&nbsp;&nbsp;
+        <button ng-click="cancelSlip()" class="btn btn-danger">Да, отменить!</button>
+    </div>
+
+    <h3>Билет {{ slipId }}</h3>
+
+    Сумма ставки: <b>{{ slipInfo.betAmount | formatNumberFixed }}</b><br/>
+    Возможный выигрыш: <b>{{ slipInfo.possibleWin | formatNumberFixed }}</b><br/>
+    Статус:
+    <span ng-show="slipInfo.status == 'canceled'" class="label label-success">отменена</span>
+    <span ng-show="slipInfo.status == 'win'" class="label label-success">выигрыш</span>
+    <span ng-show="slipInfo.status == 'loss'" class="label label-info">проигрыш</span>
+    <span ng-show="slipInfo.status == 'not_defined'" class="label">не определен</span>
+    <br/>
+    Выплачено: <b>{{ slipInfo.payAmount | formatNumberFixed }}</b><br/><br/>
+    <div ng-bind-html="content" style="max-width: 360px;"></div>
+    <hr/>
+    <h4>Операции</h4>
+
+    <table ng-show="slipOps.length" class="table table-bordered table-striped">
+        <thead><tr class="center">
+            <th>Дата</th>
+            <th>Описание</th>
+            <th>Сумма</th>
+            <th>Кассир</th>
+            <th>Id</th>
+        </tr></thead>
+        <tbody>
+        <tr class="center" ng-repeat="o in slipOps">
+            <td>{{ o.stamp }}</td>
+            <td>{{ o.note }}</td>
+            <td class="nowrap right">{{ o.amount | formatNumberFixed }}</td>
+            <td>{{ o.cashier }}</td>
+            <td>{{ o.id }}</td>
+        </tr>
+        </tbody>
+    </table>
+</div>

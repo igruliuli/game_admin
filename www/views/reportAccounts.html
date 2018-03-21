@@ -1,0 +1,109 @@
+<div ng-init="setPageTitle('Отчет по счетам')"></div>
+<div ng-init="locale = {
+    total: 'Итого'
+}"></div>
+<div class="container-fluid">
+    <div class="row-fluid">
+        <h3>Отчет по счетам</h3>
+
+        <form class="form-inline" ng-show="selectedAccounts.length" style="margin-bottom: 10px;">
+            <span class="daterange" daterangepicker opt-offset="-6" opt-time="false" opt-prefix="history.reports.accounts"
+                  start="start" end="end" label="label">
+                <i class="icon-calendar icon-large"></i>
+                <span ng-bind="label"></span> <span class="caret"></span>
+            </span>
+
+            &nbsp;&nbsp;
+            <select timezones ng-model="tz" class="timezone"></select>
+
+            &nbsp;&nbsp;
+            Валюты:
+            <label class="checkbox" ng-repeat="cur in currencies" style="margin-right: 10px;">
+                <input type="checkbox" ng-model="selCurrencies[cur]" ng-change="filterByCurrency()"> {{ cur }}
+            </label>
+
+            &nbsp;&nbsp;
+            <span ng-show="isReportReady && accs.length"
+                  class="badge badge-success" data-original-title="Всего счетов" tooltip>
+                {{ accs.length | formatNumber }}
+            </span>
+            &nbsp;
+
+            <button ng-show="isReportReady && accs.length" ng-click="exportToExcel()" class="btn btn-info">
+                <i class="icon-download icon-white"></i> Экспорт в Excel
+            </button>
+
+            <div ng-show="isReportReady && accs.length && accs.length > pager.size" class="pull-right" style="margin-top: 3px;">
+                <input type="text" class="input-tiny" ng-model="pager.size"
+                       data-original-title="Показывать по" tooltip>
+                <button class="btn btn-small" ng-click="prev()">&laquo;</button>
+                Страница {{ pager.current }} из {{ pager.total }}
+                <button class="btn btn-small" ng-click="next()">&raquo;</button>
+            </div>
+        </form>
+
+        <span ng-show="!selectedAccounts.length">Выберите счет</span>
+        <span ng-show="selectedAccounts.length && isReportReady && !accs.length">Нет данных</span>
+
+        <table ng-show="selectedAccounts.length && isReportReady && accs.length" class="table table-bordered table-striped table-condensed" style="max-width: 700px;">
+            <thead>
+            <tr class="center">
+                <th colspan="2"><button class="btn" ng-click="toggleSources()">Источники</button></th>
+                <th colspan="4">Итого</th>
+                <th ng-if="showSources" ng-repeat="s in sources" colspan="4" ng-bind="s[1]"></th>
+            </tr>
+            <tr class="center">
+                <th colspan="2" width="100" class="pointer" ng-click="sortBy('acc')" title="Сортировать">
+                    Счета
+                    <i ng-class="isSortedBy('acc')"></i>
+                </th>
+                <th width="80" class="pointer" ng-click="sortBy(0, 'totals')" title="Сортировать">
+                    Оборот
+                    <i ng-class="isSortedBy(0, 'totals')"></i>
+                </th>
+                <th width="80" class="pointer" ng-click="sortBy(1, 'totals')" title="Сортировать">
+                    Прибыль
+                    <i ng-class="isSortedBy(1, 'totals')"></i>
+                </th>
+                <th width="50" class="pointer" ng-click="sortBy(2, 'totals')" title="Сортировать">
+                    %
+                    <i ng-class="isSortedBy(2, 'totals')"></i>
+                </th>
+                <th width="70" class="pointer" ng-click="sortBy(3, 'totals')" title="Сортировать">
+                    Ставок
+                    <i ng-class="isSortedBy(3, 'totals')"></i>
+                </th>
+                <th width="80" ng-if="showSources" ng-repeat-start="s in sources"
+                    class="pointer" ng-click="sortBy(0, s[0])" title="Сортировать">
+                    Оборот
+                    <i ng-class="isSortedBy(0, s[0])"></i>
+                </th>
+                <th width="80" ng-if="showSources" class="pointer" ng-click="sortBy(1, s[0])" title="Сортировать">
+                    Прибыль
+                    <i ng-class="isSortedBy(1, s[0])"></i>
+                </th>
+                <th width="50" ng-if="showSources" class="pointer" ng-click="sortBy(2, s[0])" title="Сортировать">
+                    %
+                    <i ng-class="isSortedBy(2, s[0])"></i>
+                </th>
+                <th width="70" ng-if="showSources" ng-repeat-end=""
+                    class="pointer" ng-click="sortBy(3, s[0])" title="Сортировать">
+                    Ставок
+                    <i ng-class="isSortedBy(3, s[0])"></i>
+                </th>
+            </tr>
+            </thead>
+            <tbody id="tbody-totals">
+            </tbody>
+            <tbody id="tbody-report">
+            </tbody>
+        </table>
+        <div ng-show="selectedAccounts.length && isReportReady && accs.length && accs.length > pager.size" class="pull-right">
+            <input type="text" class="input-tiny" ng-model="pager.size"
+                   data-original-title="Показывать по" tooltip>
+            <button class="btn btn-small" ng-click="prev()">&laquo;</button>
+            Страница {{ pager.current }} из {{ pager.total }}
+            <button class="btn btn-small" ng-click="next()">&raquo;</button>
+        </div>
+    </div>
+</div>

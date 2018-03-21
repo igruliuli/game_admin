@@ -1,0 +1,85 @@
+<div ng-init="setPageTitle('Обзорный отчет')"></div>
+<div ng-init="locale = {
+    yAxisTitle1: 'Выручка',
+    yAxisTitle2: 'Число ставок',
+    seriesName1: 'Ставок сделано',
+    seriesName2: 'Принято - выплачено',
+    seriesName3: 'Ставок сделано (шт.)'
+}"></div>
+<div class="container-fluid">
+    <div class="row-fluid">
+        <h3>Обзорный отчет</h3>
+
+        <form class="form-inline" ng-show="selectedAccounts.length">
+            <!--Отчетный период:-->
+            <span class="daterange" daterangepicker opt-offset="-29" opt-time="false" opt-prefix="history.reports.main"
+                  start="start" end="end" label="label">
+                <i class="icon-calendar icon-large"></i>
+                <span ng-bind="label"></span> <span class="caret"></span>
+            </span>
+            &nbsp;&nbsp;&nbsp;
+
+            <select timezones ng-model="tz" class="timezone"></select>
+            &nbsp;&nbsp;&nbsp;
+
+            Итого:
+            <span class="badge badge-success" data-original-title="Ставок сделано" tooltip>
+                {{ totals.in | formatNumberFixed }}
+            </span>
+            <span class="badge badge-success" data-original-title="Ставок выплачено" tooltip>
+                {{ totals.out | formatNumberFixed }}
+            </span>
+            <span class="badge badge-info" data-original-title="Прочих зачислений" tooltip>
+                {{ totals.add | formatNumberFixed }}
+            </span>
+            <span class="badge badge-info" data-original-title="Прочих списаний" tooltip>
+                {{ totals.sub | formatNumberFixed }}
+            </span>
+            <span class="badge badge-important" data-original-title="Принято - выплачено" tooltip>
+                {{ totals.delta | formatNumberFixed }}
+            </span>
+        </form>
+
+        <span ng-show="!selectedAccounts.length">Выберите счет</span>
+        <span ng-show="selectedAccounts.length && isReportReady && !reportData.length">Нет данных</span>
+
+        <div class="hidden-phone" ng-show="selectedAccounts.length && isReportReady && reportData.length" id="chart-overall" style="width: 100%; height: 500px; margin: 0 auto;"></div>
+
+        <table ng-show="selectedAccounts.length && isReportReady && reportData.length" class="table table-bordered table-striped table-condensed">
+            <thead><tr class="center">
+                <th>Дата</th>
+                <!--<th>Баланс на начало</th>-->
+                <th>Ставок сделано</th>
+                <th>Ставок сделано (шт.)</th>
+                <th>Ставок выплачено</th>
+                <th>Ставок выплачено (шт.)</th>
+                <th>Прочих зачислений</th>
+                <th>Прочих списаний</th>
+                <th>Принято - выплачено</th>
+                <th>Активных счетов</th>
+            </tr></thead>
+            <tbody>
+            <tr ng-repeat="entry in reportData" class="right">
+                <td width="80" class="center nowrap">{{ entry.date }}</td>
+                <!--<td>{{ entry.balBeg | formatNumberFixed }}</td>-->
+                <td class="nowrap">{{ entry.betsPlus | formatNumberFixed }}</td>
+                <td class="center">
+                    <a href="/admin/#/reports/daily/{{ entry.date }}" title="Дневной отчет">
+                        {{ entry.betsPlusCnt }}
+                    </a>
+                </td>
+                <td class="nowrap">{{ entry.betsMinus | formatNumberFixed }}</td>
+                <td class="center">
+                    <a href="/admin/#/reports/daily/{{ entry.date }}?paid=true" title="Дневной отчет">
+                        {{ entry.betsMinusCnt }}
+                    </a>
+                </td>
+                <td class="nowrap">{{ entry.otherPlus | formatNumberFixed }}</td>
+                <td class="nowrap">{{ entry.otherMinus | formatNumberFixed }}</td>
+                <td class="nowrap">{{ entry.delta | formatNumberFixed }}</td>
+                <td class="center">{{ entry.active_accs }}</td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

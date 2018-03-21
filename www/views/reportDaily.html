@@ -1,0 +1,169 @@
+<div ng-init="setPageTitle('Дневной отчет за ' + date)"></div>
+<div ng-init="locale = {
+    loss: 'проигрыш',
+    not_ready: 'не определен',
+    canceled: 'отменена'
+}"></div>
+
+<div class="container-fluid">
+    <div class="row-fluid">
+        <div ng-show="mode == 'list'">
+            <div>
+                <button ng-click="back()" class="btn"><i class="icon-arrow-left"></i> Вернуться</button>
+                &nbsp;&nbsp;&nbsp;
+                <button ng-click="refresh()" class="btn btn-info"><i class="icon-refresh icon-white"></i> Обновить</button>
+                &nbsp;
+                <button ng-click="exportToExcel()" class="btn btn-info"><i class="icon-download icon-white"></i> Экспорт в Excel</button>
+            </div>
+
+            <h3>Дневной отчет за {{ date }}</h3>
+
+            <form class="form-inline" ng-show="selectedAccounts.length">
+
+                <span class="daterange" daterangepicker opt-offset="0" opt-time="true" opt-prefix="history.reports.daily"
+                      opt-limit="1" start="start" end="end" label="label">
+                    <i class="icon-calendar icon-large"></i>
+                    <span ng-bind="label"></span> <span class="caret"></span>
+                </span>
+                &nbsp;&nbsp;&nbsp;
+
+                <select timezones ng-model="tz" class="timezone"></select>
+                &nbsp;&nbsp;&nbsp;
+
+                <!--Показать:-->
+                <select ng-model="filter.status" style="width:150px;">
+                    <option value="taken">Сделанные</option>
+                    <option value="paid">Выплаченные</option>
+                    <option value="notPaid">Не выплаченные</option>
+                    <!--<option value="lost">Проигравшие</option>-->
+                </select>
+                &nbsp;&nbsp;&nbsp;
+
+                <span class="badge badge-info" data-original-title="Ставок всего / выплачено / показано" tooltip>
+                    {{ totals.totalCount }} / {{ totals.paidCount }} / {{ filtered.length }}
+                </span>
+                <span class="badge badge-info" data-original-title="Ставок на сумму" tooltip>
+                    {{ totals.amount | formatNumberFixed }}
+                </span>
+                <span class="badge badge-success" data-original-title="Сумма совершенных выплат" tooltip>
+                    {{ totals.paidAmount | formatNumberFixed }}
+                </span>
+                <span class="badge badge-success" data-original-title="Сумма принято - выплачено" tooltip>
+                    {{ totals.amount - totals.paidAmount | formatNumberFixed }}
+                </span>
+                <span class="badge badge-important" data-original-title="Сумма к выплате" tooltip>
+                    {{ totals.toPayAmount | formatNumberFixed }}
+                </span>
+                <span class="badge badge-important" data-original-title="Ожидаемая сумма выплат" tooltip>
+                    {{ totals.toPayTheory | formatNumberFixed }}
+                </span>
+            </form>
+
+            <span ng-show="selectedAccounts.length && isReportReady && !reportData.length">Нет данных</span>
+
+            <table ng-show="selectedAccounts.length && isReportReady && reportData.length" class="table table-bordered table-striped table-condensed" style="margin: 10px 0 5px;">
+                <thead><tr class="center">
+                    <th class="pointer" ng-click="sortBy('stamp')" title="Сортировать">
+                        Дата
+                        <span ng-show="sortOptions.field == 'stamp'">
+                            <i ng-class="sortOptions.order == 'asc' && 'icon-chevron-up' || 'icon-chevron-down'"></i>
+                        </span>
+                    </th>
+                    <th>Счет</th>
+                    <th>Касса</th>
+                    <th class="pointer" ng-click="sortBy('id')" title="Сортировать" style="width: 80px;">
+                        Номер билета
+                        <span ng-show="sortOptions.field == 'id'">
+                            <i ng-class="sortOptions.order == 'asc' && 'icon-chevron-up' || 'icon-chevron-down'"></i>
+                        </span>
+                    </th>
+                    <th class="pointer" ng-click="sortBy('betAmount')" title="Сортировать" style="width: 80px;">
+                        Ставка
+                        <span ng-show="sortOptions.field == 'betAmount'">
+                            <i ng-class="sortOptions.order == 'asc' && 'icon-chevron-up' || 'icon-chevron-down'"></i>
+                        </span>
+                    </th>
+                    <th class="pointer" ng-click="sortBy('possibleWin')" title="Сортировать" style="width: 80px;">
+                        Возможный выигрыш
+                        <span ng-show="sortOptions.field == 'possibleWin'">
+                            <i ng-class="sortOptions.order == 'asc' && 'icon-chevron-up' || 'icon-chevron-down'"></i>
+                        </span>
+                    </th>
+                    <th class="pointer" ng-click="sortBy('realWin')" title="Сортировать">
+                        Результат
+                        <span ng-show="sortOptions.field == 'realWin'">
+                            <i ng-class="sortOptions.order == 'asc' && 'icon-chevron-up' || 'icon-chevron-down'"></i>
+                        </span>
+                    </th>
+                    <th>Кассир</th>
+                    <th class="pointer" ng-click="sortBy('client_id')" title="Сортировать">
+                        Клиент
+                        <span ng-show="sortOptions.field == 'client_id'">
+                            <i ng-class="sortOptions.order == 'asc' && 'icon-chevron-up' || 'icon-chevron-down'"></i>
+                        </span>
+                    </th>
+                    <th class="pointer" ng-click="sortBy('pay_stamp')" title="Сортировать">
+                        Дата выплаты
+                        <span ng-show="sortOptions.field == 'pay_stamp'">
+                            <i ng-class="sortOptions.order == 'asc' && 'icon-chevron-up' || 'icon-chevron-down'"></i>
+                        </span>
+                    </th>
+                    <th class="pointer" ng-click="sortBy('pay_amount')" title="Сортировать" style="width: 80px;">
+                        Сумма выплаты
+                        <span ng-show="sortOptions.field == 'pay_amount'">
+                            <i ng-class="sortOptions.order == 'asc' && 'icon-chevron-up' || 'icon-chevron-down'"></i>
+                        </span>
+                    </th>
+                    <th>Кассир</th>
+                </tr></thead>
+                <tbody>
+                <tr class="filter-row center">
+                    <td></td>
+                    <td></td>
+                    <td></td>
+                    <td><input type="text" ng-model="filter.id" class="input-tiny"></td>
+                    <td><input type="text" ng-model="filter.stake" class="input-tiny" placeholder="Более..."></td>
+                    <td><input type="text" ng-model="filter.possibleWin" class="input-tiny" placeholder="Более..."></td>
+                    <td>
+                        <select ng-model="filter.result" style="width: 70px;">
+                            <option value="">все</option>
+                            <option value="win">выигрыш</option>
+                            <option value="loss">проигрыш</option>
+                            <option value="canceled">отменена</option>
+                            <option value="not_ready">не определен</option>
+                        </select>
+                    </td>
+                    <td>
+                        <select ng-model="filter.cashier" ng-options="cashier for cashier in cashiers" style="width: 90px;">
+                            <option value="">все</option>
+                        </select>
+                    </td>
+                    <td><input type="text" ng-model="filter.client" class="input-tiny"></td>
+                    <td></td>
+                    <td><input type="text" ng-model="filter.payAmount" class="input-tiny" placeholder="Более..."></td>
+                    <td></td>
+                </tr>
+                </tbody>
+                <tbody vs-repeat vs-scroll-parent=".body-right">
+                <tr bindonce ng-repeat="entry in filtered track by entry.id" bo-class="'right report-row ' + entry.class" ng-click="showDetails(entry.id)">
+                    <td class="center" bo-bind="entry.stamp"></td>
+                    <td class="center" bo-bind="entry.acc_id"></td>
+                    <td class="center" bo-bind="entry.cid"></td>
+                    <td class="center" bo-bind="entry.id"></td>
+                    <td class="nowrap" bo-bind="entry.betAmount | formatNumberFixed"></td>
+                    <td class="nowrap" bo-bind="entry.possibleWin | formatNumberFixed"></td>
+                    <td class="nowrap" bo-bind="locale[entry.realWin] || entry.realWin | formatNumberFixed"></td>
+                    <td class="center" bo-bind="users[entry.uid]"></td>
+                    <td class="center" ng-bind="clientNames[entry.client_id] || '***'"></td>
+                    <td class="center" bo-bind="entry.pay_stamp"></td>
+                    <td class="nowrap" bo-bind="entry.pay_amount | formatNumberFixed"></td>
+                    <td class="center" bo-bind="users[entry.puid]"></td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div ng-if="mode == 'view'" ng-include="'/views/_betDetails.html'" >
+        </div>
+    </div>
+</div>

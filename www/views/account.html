@@ -1,0 +1,186 @@
+<div ng-init="setPageTitle('Счета')"></div>
+<div class="container-fluid">
+    <div class="row-fluid">
+        <div ng-show="mode == 'list'">
+            <h3>Счета</h3>
+
+            <form class="form-inline" style="margin-bottom: 10px;">
+                Всего счетов:
+                <span class="badge badge-success">{{ filteredCount }}/{{ accounts.length }}</span>
+                &nbsp;&nbsp;
+                <label class="checkbox">
+                    <input type="checkbox" ng-model="filter.showDeleted"> Показать удаленные
+                </label>
+
+                &nbsp;&nbsp;
+                Валюты:
+                <label class="checkbox" ng-repeat="cur in currencies" style="margin-right: 10px;">
+                    <input type="checkbox" ng-model="selCurrencies[cur]" ng-change="filterByCurrency()"> {{ cur }}
+                </label>
+
+                <div ng-show="pager.total > 1" class="pull-right">
+                    <button class="btn btn-small" ng-click="prev()">&laquo;</button>
+                    Страница {{ pager.current }} из {{ pager.total }}
+                    <button class="btn btn-small" ng-click="next()">&raquo;</button>
+                </div>
+            </form>
+
+            <table ng-show="accounts.length" class="table table-bordered table-striped table-condensed"
+                   style="margin: 10px 0 5px;">
+                <thead><tr class="center">
+                    <th width="60">Номер</th>
+                    <th width="120">Название</th>
+                    <th width="120">Родительский счет</th>
+                    <th width="100">Баланс</th>
+                    <th>Валюта</th>
+                    <th>Примечание</th>
+                    <th width="80">Действия</th>
+                </tr></thead>
+                <tbody>
+                <tr class="filter-row">
+                    <td><input class="span12" type="text" ng-model="filter.id"></td>
+                    <td><input class="span12" type="text" ng-model="filter.name"></td>
+                    <td><input class="span12" type="text" ng-model="filter.parent"></td>
+                    <td></td>
+                    <td></td>
+                    <td><input class="span12" type="text" ng-model="filter.note"></td>
+                    <td class="center">
+                        <button class="btn" title="Очистить фильтры" ng-click="clearFilters()">
+                            <i class="icon-filter"></i>
+                        </button>
+                    </td>
+                </tr>
+                <tr ng-repeat="a in filtered" class="center" ng-class="{error: a.status == 0}">
+                    <td>{{ a.id }}</td>
+                    <td class="pointer" ng-click="selectAccount(a)">
+                        <a href="javascript://" title="Выбрать">
+                            {{ a.name + (a.status == 0 ? " (удален)" : "") }}
+                        </a>
+                    </td>
+                    <td>{{ a.parent_name }} ({{ a.parent_id }})</td>
+                    <td class="nowrap right">{{ a.balance | formatNumberFixed }}</td>
+                    <td>{{ a.currency }}</td>
+                    <td contenteditable="{{ a.level != 0 }}" class="left td-colored" ng-model="a.note" on-change="onChangeAccNote(a)"
+                        ng-class="{'error': a.invalidNote}"></td>
+                    <td>
+                        <!--<button ng-click="createForm(a)" class="btn btn-small btn-success"-->
+                        <!--title="Создать дочерний счет"><i class="icon-plus icon-white"></i>-->
+                        <!--</button>-->
+                        <!--<button ng-click="deleteForm(a)" class="btn btn-small btn-danger"-->
+                        <!--title="Удалить счет"><i class="icon-minus icon-white"></i>-->
+                        <!--</button>-->
+                        <div ng-show="hasRoleMaster" class="btn-group">
+                            <button ng-click="createForm(a)" class="btn btn-success"
+                                    title="Создать дочерний счет"><i class="icon-plus icon-white"></i>
+                            </button>
+                            <button class="btn dropdown-toggle" data-toggle="dropdown">
+                                <span class="caret"></span>
+                            </button>
+                            <ul class="dropdown-menu left" style="left: inherit;right:0;text-align: left;">
+                                <li><a ng-click="createForm(a)" href="javascript://">Создать дочерний счет</a></li>
+                                <li><a ng-click="deleteForm(a)" href="javascript://">Удалить счет</a></li>
+                                <li ng-show="a.level != 0 && hasRoleAdmin"><a ng-click="changeForm(a)" href="javascript://">Сменить родителя</a></li>
+                                <li ng-show="a.level != 0"><a ng-click="sendAction(a.id, 'block')" href="javascript://">Заблокировать счет</a></li>
+                                <li ng-show="a.level != 0"><a ng-click="sendAction(a.id, 'logout')" href="javascript://">Разлогинить счет</a></li>
+                            </ul>
+                        </div>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+
+            <div ng-show="pager.total > 1" class="pull-right">
+                <button class="btn btn-small" ng-click="prev()">&laquo;</button>
+                Страница {{ pager.current }} из {{ pager.total }}
+                <button class="btn btn-small" ng-click="next()">&raquo;</button>
+            </div>
+        </div>
+
+        <div ng-show="mode == 'create'">
+            <h4>Создание счета</h4>
+
+            <div ng-show="serverError" class="alert alert-error" style="max-width: 600px;">
+                <button ng-click="serverError = ''" type="button" class="close">&times;</button>
+                <span ng-show="serverError == 'error'">Ошибка на сервере! Не удалось выполнить операцию.</span>
+                <span ng-show="serverError == 'not_allowed'">Недостаточно прав</span>
+                <span ng-show="serverError == 'already_exists'">Аккаунт с таким названием уже существует</span>
+            </div>
+
+            <form class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="input-parent">Родительский счет</label>
+                    <div class="controls">
+                        <input type="text" ng-model="activeAcc.name" id="input-parent" disabled>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="input-name">Название</label>
+                    <div class="controls">
+                        <input type="text" ng-model="newAccName" id="input-name" placeholder="Название...">
+                        <span ng-show="!isValidAccName" class="text-error">Аккаунт с таким названием уже существует</span>
+                        <span ng-show="showEmptyAccountError" class="text-error">Укажите название аккаунта</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="input-curency">Валюта</label>
+                    <div class="controls">
+                        <input type="text" ng-model="newAccCurency" id="input-curency" placeholder="Валюта...">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="input-note">Примечание</label>
+                    <div class="controls">
+                        <textarea rows="3" ng-model="newAccNote" id="input-note" placeholder="Примечание..."></textarea>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <div class="controls">
+                        <button ng-click="create()" class="btn btn-success">Создать</button>
+                        <button ng-click="cancel()" class="btn">Отмена</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div ng-show="mode == 'delete'">
+            <h4>Удаление счета</h4>
+
+            <div ng-show="serverError" class="alert alert-error" style="max-width: 600px;">
+                <button ng-click="serverError = false" type="button" class="close">&times;</button>
+                Ошибка на сервере! Не удалось выполнить операцию.
+            </div>
+
+            Вы хотите удалить счет <b>{{ activeAcc.name }}</b>. Также будут удалены все дочерние счета. Продолжить?
+            <br/><br/>
+
+            <button ng-click="deleteAccount()" class="btn btn-danger">Да, удалить</button>
+            <button ng-click="cancel()" class="btn">Отмена</button>
+        </div>
+
+        <div ng-show="mode == 'changeParent' && hasRoleAdmin">
+            <h4>Сменить родительский счет</h4>
+
+            <div ng-show="serverError" class="alert alert-error" style="max-width: 600px;">
+                <button ng-click="serverError = ''" type="button" class="close">&times;</button>
+                <span ng-show="serverError == 'error'">Ошибка на сервере! Не удалось выполнить операцию.</span>
+                <span ng-show="serverError == 'not_allowed'">Недостаточно прав</span>
+                <span ng-show="serverError == 'invalid_acc_id_or_parent'">Несуществующий родительский счет</span>
+            </div>
+
+            <form class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="input-parent">Номер нового родительского счета:</label>
+                    <div class="controls">
+                        <input type="text" ng-model="newParentId" numbers-only>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <div class="controls">
+                        <button ng-click="changeParent()" class="btn btn-success">Сменить</button>
+                        <button ng-click="cancel()" class="btn">Отмена</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

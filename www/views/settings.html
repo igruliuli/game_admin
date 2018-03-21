@@ -1,0 +1,241 @@
+<div ng-init="setPageTitle('Настройки источников')"></div>
+
+<div class="container-fluid">
+    <div class="row-fluid">
+        <h3>Настройки источников</h3>
+
+        <span ng-show="!isOneAccSelected">Выберите счет</span>
+
+        <div ng-show="serverError" class="alert alert-error" style="max-width: 600px;">
+            <button ng-click="serverError = ''" type="button" class="close">&times;</button>
+            <span ng-show="serverError == 'error'">Ошибка на сервере! Не удалось выполнить операцию.</span>
+            <span ng-show="serverError == 'not_allowed'">Недостаточно прав</span>
+            <span ng-show="serverError == 'exceed_jp_max_percent'">Превышен максимальный процент отчисления в JP</span>
+            <span ng-show="serverError == 'exceed_jp_max_percent2'">Превышен максимальный процент вторичного накопления</span>
+        </div>
+
+        <div ng-show="isOneAccSelected && mode == 'list'">
+            Тип учета: <b>{{ accType == 1 && 'СУТКИ' || 'СМЕНЫ' }}</b>
+            <button ng-show="hasRoleMaster" class="btn btn-success btn-small btn-right" ng-click="switchAll('on')">Разрешить все источники</button>
+            <button ng-show="hasRoleMaster" class="btn btn-danger btn-small btn-right" ng-click="switchAll('off')">Заблокировать все источники</button>
+
+            <table class="table table-bordered table-striped table-condensed" style="margin-top: 12px">
+                <thead><tr class="center">
+                    <th class="pointer" ng-click="sortBy('id')" title="Сортировать">
+                        Источник
+                        <span ng-show="sortOptions.field == 'id'">
+                            <i ng-class="sortOptions.order == 'asc' && 'icon-chevron-up' || 'icon-chevron-down'"></i>
+                        </span>
+                    </th>
+                    <th class="pointer" ng-click="sortBy('name')" title="Сортировать">
+                        Название
+                        <span ng-show="sortOptions.field == 'name'">
+                            <i ng-class="sortOptions.order == 'asc' && 'icon-chevron-up' || 'icon-chevron-down'"></i>
+                        </span>
+                    </th>
+                    <th class="pointer" ng-click="sortBy('enabled')" title="Сортировать">
+                        Значение
+                        <span ng-show="sortOptions.field == 'enabled'">
+                            <i ng-class="sortOptions.order == 'asc' && 'icon-chevron-up' || 'icon-chevron-down'"></i>
+                        </span>
+                    </th>
+                    <th>Джекпот</th>
+                    <th>Процент вознаграждения (%)</th>
+                    <th>Ставка (min)</th>
+                    <th>Ставка (max)</th>
+                    <th>Максимальная сумма ставок на исход за раунд</th>
+                    <th>Максимальное количество ставок на исход за раунд</th>
+                    <th ng-show="hasRoleSuperAdmin">Статус</th>
+                </tr></thead>
+                <tbody>
+                <tr ng-repeat="source in sources" class="center middle filter-row">
+                    <td>{{ source.id }}</td>
+                    <td>{{ source.name }}</td>
+                    <td class="td-colored pointer" ng-class="source.enabled && 'success' || 'error'"
+                        ng-click="toggleSource(source)">
+                        {{ source.enabled && 'разрешено' || 'запрещено' }}
+                    </td>
+                    <td class="td-colored pointer nowrap" ng-class="source.jp_id && 'info' || 'not-defined'"
+                        ng-click="changeJackpot(source)">
+                        <span ng-show="source.jp_id">{{ formatJpAmount(source) }}</span>
+                        <span ng-show="!source.jp_id">не задан</span>
+                    </td>
+                    <td class="pointer" ng-click="changePercent(source)">{{ source.percent | formatNumber }}</td>
+                    <td class="pointer" ng-click="changeBetAmount(source)">{{ source.min_bet | formatNumberFixed }}</td>
+                    <td class="pointer" ng-click="changeBetAmount(source)">{{ source.max_bet | formatNumberFixed }}</td>
+                    <td class="pointer" ng-click="changeBetPerRound(source)">{{ source.max_bet_amount | formatNumberFixed }}</td>
+                    <td class="pointer" ng-click="changeBetPerRound(source)">{{ source.max_bet_number | formatNumber }}</td>
+                    <td ng-show="hasRoleSuperAdmin">
+                        <select ng-model="source.status" class="input-medium" ng-change="changeStatus(source)" convert-to-number>
+                            <option value="">-- не задан --</option>
+                            <option value="0">отключено</option>
+                            <option value="1">cashier</option>
+                            <option value="2">happ</option>
+                            <option value="12">cashier and happ</option>
+                        </select>
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div ng-show="mode == 'editJackpot'">
+            <button ng-click="cancel()" class="btn"><i class="icon-arrow-left"></i> Вернуться</button>
+
+            <h4>Редактирование настроек джекпота</h4>
+
+            <form id="form-jackpot" class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="input-source">Источник:</label>
+                    <div class="controls">
+                        <input type="text" ng-model="source.name" id="input-source" disabled>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="input-balance">Текущее значение:</label>
+                    <div class="controls">
+                        <input type="text" value="{{ formatJpAmount(source) }}" id="input-balance" disabled>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="input-percent">Процент отчислений:</label>
+                    <div class="controls">
+                        <input type="text" ng-model="source.jp_percent" id="input-percent" ng-pattern="numRegExp" required>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="input-fallvalue">Порог выпадения:</label>
+                    <div class="controls">
+                        <input type="text" ng-model="source.jp_fallValue" id="input-fallvalue" ng-pattern="numRegExp">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="input-prob">Вероятность срабатывания:</label>
+                    <div class="controls">
+                        <input type="text" ng-model="source.jp_prob" id="input-prob" ng-pattern="numRegExp">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="input-percent2">Процент вторичного накопления:</label>
+                    <div class="controls">
+                        <input type="text" ng-model="source.jp_percent2" id="input-percent2" ng-pattern="numRegExp">
+                        <span class="help-inline">(max {{ source.jp_percent <= 0.15 ? getMaxPercent2(source.jp_percent) : '0.05' }})</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <div class="controls">
+                        <label class="checkbox" style="width: 400px;">
+                            <input id="cb-show-bar" type="checkbox" ng-model="source.jp_show_bar" boolean-to-number>
+                            Включить прогресс бар джекпота
+                        </label>
+                    </div>
+                </div>
+                <div ng-show="hasRoleMaster" class="control-group">
+                    <div class="controls">
+                        <button ng-click="saveJackpot()" class="btn btn-success">Сохранить</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div ng-show="mode == 'editBetAmount'">
+            <button ng-click="cancel()" class="btn"><i class="icon-arrow-left"></i> Вернуться</button>
+
+            <h4>Размер ставки</h4>
+
+            <form id="form-bets" class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="input-source2">Источник:</label>
+                    <div class="controls">
+                        <input type="text" ng-model="source.name" id="input-source2" disabled>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="input-min">Min:</label>
+                    <div class="controls">
+                        <input type="text" ng-model="source.min_bet" id="input-min" ng-pattern="numRegExp">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="input-max">Max:</label>
+                    <div class="controls">
+                        <input type="text" ng-model="source.max_bet" id="input-max" ng-pattern="numRegExp">
+                    </div>
+                </div>
+                <div ng-show="hasRoleMaster" class="control-group">
+                    <div class="controls">
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="betsApplyToAll"> Применить для всех источников
+                        </label>
+                        <button ng-click="saveBets()" class="btn btn-success">Сохранить</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div ng-show="mode == 'editBetPerRound'">
+            <button ng-click="cancel()" class="btn"><i class="icon-arrow-left"></i> Вернуться</button>
+
+            <h4>Cтавки на исход за раунд</h4>
+
+            <form id="form-bets-per-round" class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="input-source3">Источник:</label>
+                    <div class="controls">
+                        <input type="text" ng-model="source.name" id="input-source3" disabled>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="input-amount-per-round">Максимальная сумма ставок на исход за раунд:</label>
+                    <div class="controls">
+                        <input type="number" ng-model="source.max_bet_amount" id="input-amount-per-round">
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="input-number-per-round">Максимальное количество ставок на исход за раунд:</label>
+                    <div class="controls">
+                        <input type="number" ng-model="source.max_bet_number" id="input-number-per-round">
+                    </div>
+                </div>
+                <div ng-show="hasRoleMaster" class="control-group">
+                    <div class="controls">
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="betsPerRoundApplyToAll"> Применить для всех источников
+                        </label>
+                        <button ng-click="saveBetsPerRound()" class="btn btn-success">Сохранить</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+        <div ng-show="mode == 'editPercent'">
+            <button ng-click="cancel()" class="btn"><i class="icon-arrow-left"></i> Вернуться</button>
+
+            <h4>Настройки вознаграждения</h4>
+
+            <form id="form-bets" class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="input-source2">Источник:</label>
+                    <div class="controls">
+                        <input type="text" ng-model="source.name" id="input-source2" disabled>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="input-percent">Процент:</label>
+                    <div class="controls">
+                        <input type="text" ng-model="source.percent" id="input-percent" ng-pattern="numRegExp">
+                    </div>
+                </div>
+                <div ng-show="hasRoleMaster" class="control-group">
+                    <div class="controls">
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="percentApplyToAll"> Применить для всех источников
+                        </label>
+                        <button ng-click="savePercent()" class="btn btn-success">Сохранить</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+
+    </div>
+</div>

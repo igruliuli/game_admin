@@ -1,0 +1,89 @@
+<div ng-init="setPageTitle('Главная')"></div>
+<div class="container-fluid">
+    <div class="row-fluid" ng-show="msg105Acc">
+        <div class="alert alert-danger">
+            <p><b>Уважаемые партнеры!</b></p>
+
+            <p>В течение всего времени работы технологическая компания (InBet) осуществляла предоставление сервиса и доступ к программным средствам.
+
+                Услуга оказывалась через компанию GK Trio. К сожалению, сумма и положение дел с накопленной задолженностью со
+                стороны GK Trio за уже оказанные услуги не позволяет нам продолжать работу в таком режиме.</p>
+
+            <p>В соответствии с этим, для продолжения работы с 01/11/16 пришлите заявку с контактными данными
+                (email, тел., имя, номер нынешнего л/с в системе) на почту konstantin@inbetgames.com
+                или заполните заявку в форме «Ваши предложения».</p>
+
+            <p>С уважением и надеждой на долгосрочное и взаимовыгодное сотрудничество,</p>
+
+            <p>Коллектив InBet.</p>
+        </div>
+    </div>
+
+
+    <div class="row-fluid">
+        <div class="span12" style="background:#f5f5f5;">
+            <!-- www.123contactform.com script begins here -->
+            <iframe allowTransparency="true" style="width:100%;height:270px;" id="contactform123"
+                    name="contactform123" frameborder="0"
+                    src="/api/main/feedback-form"
+                    onload="setIframeHeight(this.id)">
+            </iframe>
+            <script type="text/javascript">
+                function getDocHeight(doc) {
+                    if (!doc) return 45;
+                    // stackoverflow.com/questions/1145850/
+                    var body = doc.body, html = doc.documentElement;
+                    return Math.max( body.scrollHeight, body.offsetHeight,
+                            html.clientHeight, html.scrollHeight, html.offsetHeight );
+                }
+                function setIframeHeight(id) {
+                    var ifrm = document.getElementById(id), doc;
+                    try {
+                        doc = ifrm.contentDocument? ifrm.contentDocument: ifrm.contentWindow.document;
+                    } catch (e) {
+                        doc = null;
+                    }
+                    if (ifrm) {
+                        ifrm.style.visibility = 'hidden';
+                        ifrm.style.height = "10px"; // reset to minimal height ...
+                        // IE opt. for bing/msn needs a bit added or scrollbar appears
+                        ifrm.style.height = getDocHeight(doc) + 18 + "px";
+                        ifrm.style.visibility = 'visible';
+                    }
+                    return doc ? 0 : 1;
+                }
+            </script>
+            <!-- www.123contactform.com script ends here -->
+        </div>
+    </div>
+
+
+    <div class="row-fluid">
+        <h3>Новости</h3>
+
+        <article ng-repeat="entry in news" class="news-entry">
+            <header>
+                <h4>
+                    <a>{{ entry.title }}</a>
+                </h4>
+                <h5>
+                    <small>
+                        <i class="icon-calendar"></i>
+                        Опубликовано: {{ entry.published_at }}
+                        |
+                        <i class="icon-tags"></i>
+                        Метки:
+                        <a ng-repeat="tag in entry.tags">
+                            <span class="label label-info">{{ tag }}</span>
+                        </a>
+                    </small>
+                </h5>
+            </header>
+            <div class="clearfix" ng-bind-html="entry.body"></div>
+        </article>
+
+        <div style="margin-bottom: 15px;" ng-show="news.length && showMore">
+            <btn class="btn btn-info" ng-click="moreNews()"><i class="icon-chevron-left icon-white"></i> Больше новостей</btn>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,111 @@
+<div ng-init="setPageTitle('Пользователи')"></div>
+<div ng-init="locale = {
+    betting: 'Кассир',
+    system: 'Администратор',
+    admin: 'Супер Админ',
+    accountant: 'Старший бухгалтер',
+    bookkeeper: 'Бухгалтер'
+}"></div>
+<div class="container-fluid">
+    <div class="row-fluid">
+        <div ng-show="mode == 'list'" style="max-width: 800px;">
+            <h3>Пользователи</h3>
+
+            <div ng-show="isOneAccSelected" style="margin-bottom: 10px;">
+                <button ng-click="createUser()" class="btn btn-success">Новый пользователь</button>
+            </div>
+
+            <span ng-show="!isOneAccSelected">Не выбран счет</span>
+            <span ng-show="isOneAccSelected && users && !users.length">Пользователей не найдено</span>
+
+            <table ng-show="users.length && isOneAccSelected" class="table table-bordered table-striped">
+                <thead><tr class="center">
+                    <th>Id</th>
+                    <th>Логин</th>
+                    <th>IP</th>
+                    <th>Имя</th>
+                    <th>Роль</th>
+                    <th>Мультилогин</th>
+                    <th>Действия</th>
+                </tr></thead>
+                <tbody>
+                <tr class="center" ng-repeat="user in users">
+                    <td>{{ user.id }}</td>
+                    <td ng-class="user.online && 'online'">{{ user.login }}</td>
+                    <td>{{ user.geoInfo }}</td>
+                    <td>{{ user.name }}</td>
+                    <td>{{ locale[user.realm] }}</td>
+                    <td>{{ user.restricted ? 'нет' : 'да' }}</td>
+                    <td>
+                        <a ng-click="editUser(user)"><span class="label label-info pointer">Редактировать</span></a>
+                        <!--<a ng-click="deleteUser(user)"><span class="label label-important">Удалить</span></a>-->
+                    </td>
+                </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div ng-show="mode == 'edit'">
+            <h3 ng-bind="user.id && 'Редактирование пользователя' || 'Создание пользователя'"></h3>
+
+            <div ng-show="serverError" class="alert alert-error">
+                <button ng-click="serverError = ''" type="button" class="close">&times;</button>
+                <span ng-show="serverError == 'error'">Ошибка на сервере! Не удалось выполнить операцию.</span>
+                <span ng-show="serverError == 'exceeded_cashiers_number'">Превышено число кассиров!</span>
+            </div>
+
+            <form class="form-horizontal">
+                <div class="control-group">
+                    <label class="control-label" for="inputLogin">Логин</label>
+                    <div class="controls">
+                        <input type="text" ng-model="user.login" id="inputLogin" placeholder="Логин...">
+                        <span ng-show="!validLogin" class="text-error ">Логин с таким именем уже существует</span>
+                        <span ng-show="showEmptyLoginError" class="text-error">Логин не задан</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="inputPassword">
+                        {{ user.id && 'Сменить пароль' || 'Пароль' }}
+                    </label>
+                    <div class="controls">
+                        <input type="text" ng-model="user.password" id="inputPassword" placeholder="Пароль...">
+                        <span ng-show="invalidPasswordLength" class="text-error">Пароль должен быть не менее 4 и не более 30 символов</span>
+                        <span ng-show="showEmptyPasswordError" class="text-error">Пароль не задан</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="inputName">Имя</label>
+                    <div class="controls">
+                        <input type="text" ng-model="user.name" id="inputName" placeholder="Имя...">
+                        <span ng-show="showEmptyNameError" class="text-error">Имя не задано</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label class="control-label" for="selectRole">Роль</label>
+                    <div class="controls">
+                        <select id="selectRole" ng-model="user.realm">
+                            <option value="betting">Кассир</option>
+                            <option value="system">Администратор</option>
+                            <option value="accountant">Старший бухгалтер</option>
+                            <option value="bookkeeper">Бухгалтер</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <div class="controls">
+                        <label class="checkbox">
+                            <input type="checkbox" ng-model="user.multilogin"> Включить мультилогин
+                        </label>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <div class="controls">
+                        <button ng-click="saveUser()" class="btn btn-success"
+                                ng-bind="user.id && 'Сохранить' || 'Создать'"></button>
+                        <button ng-click="cancel()" class="btn">Отмена</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
